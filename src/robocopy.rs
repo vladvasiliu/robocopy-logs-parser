@@ -39,7 +39,7 @@ impl RobocopyResult {
         RobocopyResult::default()
     }
 
-    /// Parse a header or footer key and value
+    /// Parse a header key and value
     ///
     /// Expects the keys and values to be trimmed
     ///
@@ -73,6 +73,9 @@ impl RobocopyResult {
     ///
     /// Possible fields:
     /// * Ended
+    /// * Speed (bytes only)
+    /// * Dirs
+    /// * Files
     pub fn parse_footer(&mut self, key: &str, value: &str) {
         let mut r = move || {
             match key {
@@ -105,6 +108,7 @@ fn split_key_value(line: &str) -> Option<(&str, &str)> {
     line.split_once(':').map(|(k, v)| (k.trim(), v.trim()))
 }
 
+/// Read and parse the file into a usable struct
 pub fn read_file<P: AsRef<Path>>(path: P) -> Result<RobocopyResult> {
     let file = File::open(path)?;
 
