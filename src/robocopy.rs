@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, TimeZone};
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use std::fs::File;
@@ -78,6 +78,14 @@ impl RobocopyResult {
             match key {
                 "Ended" => self.ended = Some(Local.datetime_from_str(value, DATE_TIME_FORMAT)?),
                 "Speed" => self.speed = Some(parse_speed(value)?),
+                "Dirs" => {
+                    self.dirs_stats =
+                        Some(parse_stats(value).context("Failed to parse dirs stats")?)
+                }
+                "Files" => {
+                    self.files_stats =
+                        Some(parse_stats(value).context("Failed to parse files stats")?)
+                }
                 _ => return Err(anyhow!("Unknown footer key: {}", key)),
             };
             Ok(())
@@ -97,7 +105,7 @@ fn split_key_value(line: &str) -> Option<(&str, &str)> {
     line.split_once(':').map(|(k, v)| (k.trim(), v.trim()))
 }
 
-pub fn read_file<P: AsRef<Path>>(path: P) -> anyhow::Result<RobocopyResult> {
+pub fn read_file<P: AsRef<Path>>(path: P) -> Result<RobocopyResult> {
     let file = File::open(path)?;
 
     let decoder = DecodeReaderBytesBuilder::new()
@@ -149,7 +157,7 @@ pub fn read_file<P: AsRef<Path>>(path: P) -> anyhow::Result<RobocopyResult> {
     Ok(stats)
 }
 
-fn parse_speed(value: &str) -> anyhow::Result<u128> {
+fn parse_speed(value: &str) -> Result<u128> {
     let (value, unit) = value
         .split_once(' ')
         .ok_or_else(|| anyhow!("Unrecognized speed value: {}", value))?;
@@ -158,4 +166,25 @@ fn parse_speed(value: &str) -> anyhow::Result<u128> {
     } else {
         Err(anyhow!("Unexpected speed unit: {}", unit))
     }
+}
+
+/// Parses the copy statistics from the Robocopy log
+fn parse_stats(value: &str) -> Result<CopyStat> {
+    let fields_iter = value.split_ascii_whitespace();
+    let field_vec = fields_iter.collect::<Vec<&str>>();
+    let field_count = field_vec.len();
+    if field_count != 6 {
+        return Err(anyhow!(
+            "Wrong number of fields: {} instead of 6",
+            field_count,
+        ));
+    };
+    Ok(CopyStat {
+        total: field_vec[0].parse()?,
+        copied: field_vec[1].parse()?,
+        skipped: field_vec[2].parse()?,
+        mismatch: field_vec[3].parse()?,
+        failed: field_vec[4].parse()?,
+        extras: field_vec[5].parse()?,
+    })
 }
