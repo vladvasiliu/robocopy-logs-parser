@@ -8,22 +8,35 @@ use tracing::warn;
 
 static DATE_TIME_FORMAT: &str = "%A, %B %e, %Y %r";
 
-#[derive(Default, Debug)]
-pub struct RobocopyStats {
-    started: DateTime<Local>,
-    ended: DateTime<Local>,
-    source: String,
-    destination: String,
-    /// Files selection pattern
-    files: String,
-    options: String,
-    /// In bytes per second
-    speed: u128,
+#[derive(Debug)]
+pub struct CopyStat {
+    total: u128,
+    copied: u128,
+    skipped: u128,
+    mismatch: u128,
+    failed: u128,
+    extras: u128,
 }
 
-impl RobocopyStats {
+#[derive(Default, Debug)]
+pub struct RobocopyResult {
+    started: Option<DateTime<Local>>,
+    ended: Option<DateTime<Local>>,
+    source: Option<String>,
+    destination: Option<String>,
+    /// Files selection pattern
+    files: Option<String>,
+    options: Option<String>,
+    /// In bytes per second
+    speed: Option<u128>,
+    dirs_stats: Option<CopyStat>,
+    files_stats: Option<CopyStat>,
+    bytes_stats: Option<CopyStat>,
+}
+
+impl RobocopyResult {
     pub fn new() -> Self {
-        RobocopyStats::default()
+        RobocopyResult::default()
     }
 
     /// Parse a header or footer key and value
@@ -39,11 +52,11 @@ impl RobocopyStats {
     pub fn parse_header(&mut self, key: &str, value: &str) {
         let mut r = move || {
             match key {
-                "Started" => self.started = Local.datetime_from_str(value, DATE_TIME_FORMAT)?,
-                "Source" => self.source = value.to_string(),
-                "Dest" => self.destination = value.to_string(),
-                "Files" => self.files = value.to_string(),
-                "Options" => self.options = value.to_string(),
+                "Started" => self.started = Some(Local.datetime_from_str(value, DATE_TIME_FORMAT)?),
+                "Source" => self.source = Some(value.to_string()),
+                "Dest" => self.destination = Some(value.to_string()),
+                "Files" => self.files = Some(value.to_string()),
+                "Options" => self.options = Some(value.to_string()),
                 _ => return Err(anyhow!("Unknown header key: {}", key)),
             };
             Ok(())
@@ -63,8 +76,8 @@ impl RobocopyStats {
     pub fn parse_footer(&mut self, key: &str, value: &str) {
         let mut r = move || {
             match key {
-                "Ended" => self.ended = Local.datetime_from_str(value, DATE_TIME_FORMAT)?,
-                "Speed" => self.speed = parse_speed(value)?,
+                "Ended" => self.ended = Some(Local.datetime_from_str(value, DATE_TIME_FORMAT)?),
+                "Speed" => self.speed = Some(parse_speed(value)?),
                 _ => return Err(anyhow!("Unknown footer key: {}", key)),
             };
             Ok(())
@@ -84,14 +97,14 @@ fn split_key_value(line: &str) -> Option<(&str, &str)> {
     line.split_once(':').map(|(k, v)| (k.trim(), v.trim()))
 }
 
-pub fn read_file<P: AsRef<Path>>(path: P) -> anyhow::Result<RobocopyStats> {
+pub fn read_file<P: AsRef<Path>>(path: P) -> anyhow::Result<RobocopyResult> {
     let file = File::open(path)?;
 
     let decoder = DecodeReaderBytesBuilder::new()
         .encoding(Some(encoding_rs::WINDOWS_1252))
         .build(file);
     let buffered_file = BufReader::new(decoder);
-    let mut stats = RobocopyStats::new();
+    let mut stats = RobocopyResult::new();
 
     // There are four sections, each coming after a first line of only dashes:
     // 1. ROBOCOPY title
