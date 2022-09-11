@@ -2,6 +2,10 @@
 name = "robocopy-logs-parser"
 version = "0.1.0"
 edition = "2021"
+authors = ["Vlad Vasiliu"]
+repository = "https://github.com/vladvasiliu/robocopy-logs-parser"
+license = "BSD 3-Clause"
+README = "./README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
