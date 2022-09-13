@@ -50,7 +50,7 @@ impl RobocopyResult {
     /// * Files
     /// * Options
     pub fn parse_header(&mut self, key: &str, value: &str) {
-        let mut r = move || {
+        if let Err(err) = (|| {
             match key {
                 "Started" => self.started = Some(Local.datetime_from_str(value, DATE_TIME_FORMAT)?),
                 "Source" => self.source = Some(value.to_string()),
@@ -60,11 +60,9 @@ impl RobocopyResult {
                 _ => return Err(anyhow!("Unknown header key: {}", key)),
             };
             Ok(())
-        };
-
-        if let Err(err) = r() {
+        })() {
             warn!("Failed to parse header key `{}`: {}", key, err);
-        }
+        };
     }
 
     /// Parse a footer key and value
@@ -77,7 +75,7 @@ impl RobocopyResult {
     /// * Dirs
     /// * Files
     pub fn parse_footer(&mut self, key: &str, value: &str) {
-        let mut r = move || {
+        if let Err(err) = (|| {
             match key {
                 "Ended" => self.ended = Some(Local.datetime_from_str(value, DATE_TIME_FORMAT)?),
                 "Speed" => self.speed = Some(parse_speed(value)?),
@@ -89,14 +87,16 @@ impl RobocopyResult {
                     self.files_stats =
                         Some(parse_stats(value).context("Failed to parse files stats")?)
                 }
+                "Bytes" => {
+                    self.bytes_stats =
+                        Some(parse_stats(value).context("Failed to parse bytes stats")?)
+                }
                 _ => return Err(anyhow!("Unknown footer key: {}", key)),
             };
             Ok(())
-        };
-
-        if let Err(err) = r() {
+        })() {
             warn!("Failed to parse footer key `{}`: {}", key, err);
-        }
+        };
     }
 }
 
@@ -113,7 +113,7 @@ pub fn read_file<P: AsRef<Path>>(path: P) -> Result<RobocopyResult> {
     let file = File::open(path)?;
 
     let decoder = DecodeReaderBytesBuilder::new()
-        .encoding(Some(encoding_rs::WINDOWS_1252))
+        .encoding(Some(encoding_rs::UTF_16LE))
         .build(file);
     let buffered_file = BufReader::new(decoder);
     let mut stats = RobocopyResult::new();
@@ -179,7 +179,7 @@ fn parse_stats(value: &str) -> Result<CopyStat> {
     let field_count = field_vec.len();
     if field_count != 6 {
         return Err(anyhow!(
-            "Wrong number of fields: {} instead of 6",
+            "Unexpected number of fields: {} instead of 6",
             field_count,
         ));
     };
