@@ -18,5 +18,7 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 encoding_rs = "0.8"
 encoding_rs_io = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }

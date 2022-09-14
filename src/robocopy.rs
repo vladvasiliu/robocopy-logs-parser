@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, TimeZone};
 use encoding_rs_io::DecodeReaderBytesBuilder;
+use serde::Serialize;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -8,7 +9,7 @@ use tracing::warn;
 
 static DATE_TIME_FORMAT: &str = "%A, %B %e, %Y %r";
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct CopyStat {
     total: u128,
     copied: u128,
@@ -18,7 +19,14 @@ pub struct CopyStat {
     extras: u128,
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug, Default, Serialize)]
+pub struct Stats {
+    dirs: Option<CopyStat>,
+    files: Option<CopyStat>,
+    bytes: Option<CopyStat>,
+}
+
+#[derive(Default, Debug, Serialize)]
 pub struct RobocopyResult {
     started: Option<DateTime<Local>>,
     ended: Option<DateTime<Local>>,
@@ -29,9 +37,7 @@ pub struct RobocopyResult {
     options: Option<String>,
     /// In bytes per second
     speed: Option<u128>,
-    dirs_stats: Option<CopyStat>,
-    files_stats: Option<CopyStat>,
-    bytes_stats: Option<CopyStat>,
+    stats: Stats,
 }
 
 impl RobocopyResult {
@@ -80,15 +86,15 @@ impl RobocopyResult {
                 "Ended" => self.ended = Some(Local.datetime_from_str(value, DATE_TIME_FORMAT)?),
                 "Speed" => self.speed = Some(parse_speed(value)?),
                 "Dirs" => {
-                    self.dirs_stats =
+                    self.stats.dirs =
                         Some(parse_stats(value).context("Failed to parse dirs stats")?)
                 }
                 "Files" => {
-                    self.files_stats =
+                    self.stats.files =
                         Some(parse_stats(value).context("Failed to parse files stats")?)
                 }
                 "Bytes" => {
-                    self.bytes_stats =
+                    self.stats.bytes =
                         Some(parse_stats(value).context("Failed to parse bytes stats")?)
                 }
                 _ => return Err(anyhow!("Unknown footer key: {}", key)),
@@ -97,6 +103,14 @@ impl RobocopyResult {
         })() {
             warn!("Failed to parse footer key `{}`: {}", key, err);
         };
+    }
+
+    pub fn write_to_file(&self) -> Result<()> {
+        let file = File::options()
+            .write(true)
+            .create_new(true)
+            .open("output.json")?;
+        serde_json::to_writer(&file, &self).context("Failed to write output file")
     }
 }
 
