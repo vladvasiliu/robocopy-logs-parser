@@ -41,8 +41,57 @@ pub struct RobocopyResult {
 }
 
 impl RobocopyResult {
-    pub fn new() -> Self {
-        RobocopyResult::default()
+    /// Read and parse the file into a usable struct
+    pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file = File::open(path)?;
+
+        let decoder = DecodeReaderBytesBuilder::new()
+            .encoding(Some(encoding_rs::UTF_16LE))
+            .build(file);
+        let buffered_file = BufReader::new(decoder);
+        let mut robocopy_result = Self::default();
+
+        // There are four sections, each coming after a first line of only dashes:
+        // 1. ROBOCOPY title
+        // 2. Initial info and config
+        // 3. Files list
+        // 4. End statistics
+        //
+        // We only care about numbers 2 and 4
+        let mut section = 0;
+
+        for (line_no, line) in buffered_file.lines().enumerate() {
+            let line = match line {
+                Ok(line) => line,
+                Err(err) => {
+                    warn!("Failed to read line {}: {}", line_no, err);
+                    continue;
+                }
+            };
+
+            let line = line.trim();
+
+            if line.is_empty() {
+                continue;
+            }
+
+            if line.trim_start_matches('-').is_empty() {
+                section += 1;
+                continue;
+            }
+
+            if section == 2 {
+                if let Some((k, v)) = split_key_value(line) {
+                    robocopy_result.parse_header(k, v);
+                }
+            } else if section == 4 {
+                if let Some((k, v)) = split_key_value(line) {
+                    robocopy_result.parse_footer(k, v);
+                }
+            }
+        }
+
+        Ok(robocopy_result)
     }
 
     /// Parse a header key and value
@@ -120,59 +169,6 @@ impl RobocopyResult {
 fn split_key_value(line: &str) -> Option<(&str, &str)> {
     let line = line.trim();
     line.split_once(':').map(|(k, v)| (k.trim(), v.trim()))
-}
-
-/// Read and parse the file into a usable struct
-pub fn read_file<P: AsRef<Path>>(path: P) -> Result<RobocopyResult> {
-    let file = File::open(path)?;
-
-    let decoder = DecodeReaderBytesBuilder::new()
-        .encoding(Some(encoding_rs::UTF_16LE))
-        .build(file);
-    let buffered_file = BufReader::new(decoder);
-    let mut stats = RobocopyResult::new();
-
-    // There are four sections, each coming after a first line of only dashes:
-    // 1. ROBOCOPY title
-    // 2. Initial info and config
-    // 3. Files list
-    // 4. End statistics
-    //
-    // We only care about numbers 2 and 4
-    let mut section = 0;
-
-    for (line_no, line) in buffered_file.lines().enumerate() {
-        let line = match line {
-            Ok(line) => line,
-            Err(err) => {
-                warn!("Failed to read line {}: {}", line_no, err);
-                continue;
-            }
-        };
-
-        let line = line.trim();
-
-        if line.is_empty() {
-            continue;
-        }
-
-        if line.trim_start_matches('-').is_empty() {
-            section += 1;
-            continue;
-        }
-
-        if section == 2 {
-            if let Some((k, v)) = split_key_value(line) {
-                stats.parse_header(k, v);
-            }
-        } else if section == 4 {
-            if let Some((k, v)) = split_key_value(line) {
-                stats.parse_footer(k, v);
-            }
-        }
-    }
-
-    Ok(stats)
 }
 
 fn parse_speed(value: &str) -> Result<u128> {
