@@ -154,11 +154,8 @@ impl RobocopyResult {
         };
     }
 
-    pub fn write_to_file(&self) -> Result<()> {
-        let file = File::options()
-            .write(true)
-            .create_new(true)
-            .open("output.json")?;
+    pub fn write_to_file<P: AsRef<Path>>(&self, output: P) -> Result<()> {
+        let file = File::options().write(true).create_new(true).open(output)?;
         serde_json::to_writer(&file, &self).context("Failed to write output file")
     }
 }

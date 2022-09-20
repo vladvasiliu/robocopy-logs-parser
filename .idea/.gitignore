@@ -7,3 +7,6 @@
 /dataSources/
 /dataSources.local.xml
 /pydantic.xml
+/aws.xml
+/git_toolbox_prj.xml
+/markdown.xml
