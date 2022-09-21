@@ -1,11 +1,12 @@
 use clap::builder::PathBufValueParser;
-use clap::{arg, command};
+use clap::{arg, command, ArgAction};
 use std::path::PathBuf;
 
 pub struct Config {
     pub source_file: PathBuf,
     pub output_file: PathBuf,
     pub log_file: PathBuf,
+    pub overwrite: bool,
 }
 
 impl Config {
@@ -26,12 +27,18 @@ impl Config {
                     .value_parser(PathBufValueParser::new())
                     .required(true),
             )
+            .arg(
+                arg!(--overwrite "Overwrite of output file if present")
+                    .takes_value(false)
+                    .action(ArgAction::SetTrue),
+            )
             .get_matches();
 
         Config {
             source_file: matches.get_one::<PathBuf>("source").unwrap().clone(),
             output_file: matches.get_one::<PathBuf>("output").unwrap().clone(),
             log_file: matches.get_one::<PathBuf>("log").unwrap().clone(),
+            overwrite: matches.get_flag("overwrite"),
         }
     }
 }
