@@ -2,10 +2,11 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, TimeZone};
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use serde::Serialize;
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use tracing::warn;
+use tracing::{instrument, warn};
 
 static DATE_TIME_FORMAT: &str = "%A, %B %e, %Y %r";
 
@@ -42,7 +43,8 @@ pub struct RobocopyResult {
 
 impl RobocopyResult {
     /// Read and parse the file into a usable struct
-    pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+    #[instrument]
+    pub fn read_file<P: AsRef<Path> + Debug>(path: P) -> Result<Self> {
         let file = File::open(path)?;
 
         let decoder = DecodeReaderBytesBuilder::new()
@@ -104,6 +106,7 @@ impl RobocopyResult {
     /// * Dest
     /// * Files
     /// * Options
+    #[instrument(skip(self))]
     pub fn parse_header(&mut self, key: &str, value: &str) {
         if let Err(err) = (|| {
             match key {
@@ -129,6 +132,7 @@ impl RobocopyResult {
     /// * Speed (bytes only)
     /// * Dirs
     /// * Files
+    #[instrument(skip(self))]
     pub fn parse_footer(&mut self, key: &str, value: &str) {
         if let Err(err) = (|| {
             match key {
@@ -154,7 +158,8 @@ impl RobocopyResult {
         };
     }
 
-    pub fn write_to_file<P: AsRef<Path>>(&self, output: P) -> Result<()> {
+    #[instrument(skip(self))]
+    pub fn write_to_file<P: AsRef<Path> + Debug>(&self, output: P) -> Result<()> {
         let file = File::options().write(true).create_new(true).open(output)?;
         serde_json::to_writer(&file, &self).context("Failed to write output file")
     }
