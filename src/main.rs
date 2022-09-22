@@ -9,7 +9,12 @@ mod config;
 mod robocopy;
 
 fn main() {
-    tracing_subscriber::fmt().init();
+    let subscriber = tracing_subscriber::fmt();
+    if matches!(std::env::var("ROBOCOPY_LOG"), Ok(f) if f.eq_ignore_ascii_case("json")) {
+        subscriber.json().init();
+    } else {
+        subscriber.init();
+    }
     let config = Config::from_args();
     work(&config);
 }
@@ -25,7 +30,6 @@ fn work(config: &Config) {
         Err(err) => error!(
             error.cause = err.root_cause(),
             error.source = err.root_cause().source(),
-            error.backtrace = err.backtrace().to_string(),
             "{}",
             err
         ),

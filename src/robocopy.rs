@@ -4,7 +4,7 @@ use encoding_rs_io::DecodeReaderBytesBuilder;
 use serde::Serialize;
 use std::fmt::Debug;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 use tracing::{instrument, warn};
 
@@ -168,7 +168,12 @@ impl RobocopyResult {
             options.create_new(true);
         }
         let file = options.open(output).context("Failed to open output file")?;
-        serde_json::to_writer(&file, &self).context("Failed to write output file")
+        let mut writer = BufWriter::new(file);
+        serde_json::to_writer(&mut writer, &self).context("Failed to write output file")?;
+        writer
+            .write_all("\n".as_bytes())
+            .context("Failed to write newline to output file")?;
+        writer.flush().context("Failed to flush output to disk")
     }
 }
 

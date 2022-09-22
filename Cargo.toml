@@ -14,7 +14,7 @@ keywords = ["robocopy", "logs", "logging"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { version = "1", features = ["backtrace"] }
+anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "3", features = ["cargo"] }
 encoding_rs = "0.8"
