@@ -1,3 +1,5 @@
+use anyhow::Result;
+use std::fs::OpenOptions;
 use tracing::{error, info, instrument};
 
 use robocopy::RobocopyResult;
@@ -8,15 +10,24 @@ use crate::config::Config;
 mod config;
 mod robocopy;
 
-fn main() {
+fn main() -> Result<()> {
+    let config = Config::from_args();
+
     let subscriber = tracing_subscriber::fmt();
-    if matches!(std::env::var("ROBOCOPY_LOG"), Ok(f) if f.eq_ignore_ascii_case("json")) {
-        subscriber.json().init();
+
+    if let Some(log_file_path) = &config.log_file {
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .append(true)
+            .open(log_file_path)?;
+
+        subscriber.json().with_writer(file).init();
     } else {
         subscriber.init();
     }
-    let config = Config::from_args();
     work(&config);
+    Ok(())
 }
 
 #[instrument(skip_all, name = "main", fields(execution_id = Uuid::new_v4().to_string()))]

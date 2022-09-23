@@ -5,7 +5,7 @@ use std::path::PathBuf;
 pub struct Config {
     pub source_file: PathBuf,
     pub output_file: PathBuf,
-    pub log_file: PathBuf,
+    pub log_file: Option<PathBuf>,
     pub overwrite: bool,
 }
 
@@ -25,7 +25,7 @@ impl Config {
             .arg(
                 arg!(--log <LOG> "Where to output this program's logs")
                     .value_parser(PathBufValueParser::new())
-                    .required(true),
+                    .required(false),
             )
             .arg(
                 arg!(--overwrite "Overwrite of output file if present")
@@ -37,7 +37,7 @@ impl Config {
         Config {
             source_file: matches.get_one::<PathBuf>("source").unwrap().clone(),
             output_file: matches.get_one::<PathBuf>("output").unwrap().clone(),
-            log_file: matches.get_one::<PathBuf>("log").unwrap().clone(),
+            log_file: matches.get_one::<PathBuf>("log").cloned(),
             overwrite: matches.get_flag("overwrite"),
         }
     }
