@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::Utc;
 use std::fs::OpenOptions;
 use tracing::{error, info, instrument};
 use tracing_subscriber::layer::SubscriberExt;
@@ -37,17 +38,26 @@ fn main() -> Result<()> {
 
 #[instrument(skip_all, name = "main", fields(execution_id = Uuid::new_v4().to_string()))]
 fn work(config: &Config) {
-    match (|| {
+    let start_time = Utc::now();
+    let result = (|| {
         let r = RobocopyResult::read_file(&config.source_file)?;
         r.write_to_file(&config.output_file, config.overwrite)?;
         Ok::<(), anyhow::Error>(())
-    })() {
-        Ok(()) => info!("Done"),
-        Err(err) => error!(
-            error.cause = err.root_cause(),
-            error.source = err.root_cause().source(),
-            "{}",
-            err
-        ),
-    }
+    })();
+
+    let end_time = Utc::now();
+    let duration = (end_time - start_time).num_seconds();
+    let success = match result {
+        Ok(()) => true,
+        Err(err) => {
+            error!(
+                error.cause = err.root_cause(),
+                error.source = err.root_cause().source(),
+                "{}",
+                err
+            );
+            false
+        }
+    };
+    info!(duration, success, "Done");
 }
