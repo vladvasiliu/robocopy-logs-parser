@@ -32,6 +32,7 @@ fn main() -> Result<()> {
         None
     };
     subscriber.with(log_json).init();
+    info!(version = env!("CARGO_PKG_VERSION"), "Starting");
     work(&config);
     Ok(())
 }
