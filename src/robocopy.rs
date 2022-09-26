@@ -182,7 +182,11 @@ impl RobocopyResult {
 /// Both keys and values are returned trimmed
 fn split_key_value(line: &str) -> Option<(&str, &str)> {
     let line = line.trim();
-    line.split_once(':').map(|(k, v)| (k.trim(), v.trim()))
+    let parts = match line.split_once(':') {
+        Some((k, v)) => Some((k, v)),
+        None => line.split_once('='),
+    };
+    parts.map(|(k, v)| (k.trim(), v.trim()))
 }
 
 fn parse_speed(value: &str) -> Result<u128> {

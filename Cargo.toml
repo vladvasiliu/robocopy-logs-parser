@@ -9,6 +9,7 @@ readme = "./README.md"
 description = "A parser for Robocopy logs"
 categories = ["parsing"]
 keywords = ["robocopy", "logs", "logging"]
+build = "build.rs"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -35,3 +36,6 @@ incremental = false
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
