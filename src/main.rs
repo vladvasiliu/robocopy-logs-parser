@@ -1,6 +1,8 @@
 use anyhow::Result;
 use std::fs::OpenOptions;
 use tracing::{error, info, instrument};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use robocopy::RobocopyResult;
 use uuid::Uuid;
@@ -13,19 +15,22 @@ mod robocopy;
 fn main() -> Result<()> {
     let config = Config::from_args();
 
-    let subscriber = tracing_subscriber::fmt();
+    let log_stdout = tracing_subscriber::fmt::layer();
 
-    if let Some(log_file_path) = &config.log_file {
+    let subscriber = tracing_subscriber::Registry::default().with(log_stdout);
+
+    let log_json = if let Some(log_file_path) = &config.log_file {
         let file = OpenOptions::new()
             .write(true)
             .create(true)
             .append(true)
             .open(log_file_path)?;
 
-        subscriber.json().with_writer(file).init();
+        Some(tracing_subscriber::fmt::layer().json().with_writer(file))
     } else {
-        subscriber.init();
-    }
+        None
+    };
+    subscriber.with(log_json).init();
     work(&config);
     Ok(())
 }
