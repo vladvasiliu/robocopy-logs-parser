@@ -29,7 +29,7 @@ impl Config {
             )
             .arg(
                 arg!(--overwrite "Overwrite of output file if present")
-                    .takes_value(false)
+                    .number_of_values(0)
                     .action(ArgAction::SetTrue),
             )
             .get_matches();
